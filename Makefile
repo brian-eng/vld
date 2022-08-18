@@ -131,7 +131,7 @@ endif
 
 clean:
 	@echo " CLEAN"
-	${Q}rm -f ${OBJ} ${LIBS} ${DEPS}
+	${Q}rm -f ${OBJ} ${LIBS} ${DEPS} ${DEPS}.*
 
 echoarch:
 	@echo "Make for $(OS)-$(ARCH)"
