@@ -433,7 +433,256 @@ vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc)
   CHECKID(id);
 
   VLOCK;
-  *trigsrc = vmeRead32(&VLDp[id]->trigSrc) & VLD_TRIGSRC_MASK;
+  *trigSrc = vmeRead32(&VLDp[id]->trigSrc) & VLD_TRIGSRC_MASK;
+  VUNLOCK;
+
+  return OK;
+}
+
+
+int32_t
+vldSetClockSource(int32_t id, uint32_t clkSrc)
+{
+  CHECKID(id);
+
+  VLOCK;
+
+  VUNLOCK;
+
+  return OK;
+}
+
+/*
+  if timer == 0, use the current register value
+ */
+int32_t
+vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
+{
+  uint32_t wval = 0;
+  CHECKID(id);
+
+  if(timer > VLD_BLEACHTIME_TIMER_MASK)
+    {
+      printf("%s: WARN: Invalid Bleach time %u (0x%x).  Setting to Max (0x%x)\n",
+	     __func__, timer, timer, VLD_BLEACHTIME_TIMER_MASK);
+      timer = VLD_BLEACHTIME_TIMER_MASK;
+    }
+
+  enable = enable ? VLD_BLEACHTIME_ENABLE : 0;
+
+  VLOCK;
+  if(timer == 0)
+    timer = vmeRead32(&VLDp[id]->bleachTime) & VLD_BLEACHTIME_TIMER_MASK;
+
+  wval = timer | enable;
+
+  vmeWrite32(&VLDp[id]->bleachTime, wval);
+  VUNLOCK;
+
+  return OK;
+}
+
+
+
+int32_t
+vldSetCalibrationPulseWidth(int32_t id, uint32_t width)
+{
+  CHECKID(id);
+
+  if(width > VLD_CALIBRATIONWIDTH_MASK)
+    {
+      printf("%s: ERROR: Invalid Calibration Pulse Width (0x%x).  Max = 0x%x\n",
+	     __func__, width, VLD_CALIBRATIONWIDTH_MASK);
+      return ERROR;
+    }
+
+  VLOCK;
+  vmeWrit32(&VLDp[id]->bleachTime, width);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth)
+{
+  uint32_t maxDelay = 0xFF, maxWidth = 0x7F;
+  CHECKID(id);
+
+  if(enableDelay > maxDelay)
+    {
+      printf("%s: ERROR: Invalid enableDelay (0%x).  Max = 0x%x\n",
+	     __func__, enableDelay, maxDelay);
+      return ERROR;
+    }
+
+  if(enableWidth > maxWidth)
+    {
+      printf("%s: ERROR: Invalid enableWidth (0%x).  Max = 0x%x\n",
+	     __func__, enableWidth, maxWidth);
+      return ERROR;
+    }
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->analogCtrl, enableDelay | (enableWidth << 9));
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
+{
+  uint32_t maxPrescale = 0x7;
+  CHECKID(id);
+
+  if(prescale > maxPrescale)
+    {
+      printf("%s: ERROR: Invalid prescale 0x%x. Max = %d\n",
+	     __func__, prescale, maxPrescale);
+    }
+
+  enable = enable ? VLD_RANDOMTRIG_ENABLE : 0;
+
+  VLOCK;
+  if(prescale == 0)
+    prescale = vmeRead32(&VLDp[id]->randomTrig) & VLD_RANDOMTRIG_RATE_MASK;
+
+  vmeWrite32(&VLDp[id]->randomTrig, prescale | (prescale << 4) | enable);
+  VUNLOCK;
+
+  return OK;
+}
+
+
+int32_t
+vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
+{
+  uint32_t maxPeriod = 0xFFFF, maxNpulses = 0xFFFF;
+  CHECKID(id);
+
+  if(period > maxPeriod)
+    {
+      printf("%s: ERROR: Invalid period (%u).  Max = %u.\n",
+	     __func__, period, maxPeriod);
+      return ERROR;
+    }
+
+  if(npulses > maxNpulses)
+    {
+      printf("%s: WARN: Invalid npulses (%u).  Set to = %u.\n",
+	     __func__, npulses, maxNpules);
+      npulses = maxNpulses;
+    }
+
+  VLOCK;
+  if(period == 0)
+    period = (vmeRead32(&VLDp[id]->periodicTrig) & VLD_PERIODICTRIG_PERIOD_MASK) >> 16;
+
+  vmeWrite32(&VLDp[id]->periodicTrig, npulses | (period << 16));
+  VUNLOCK;
+
+  return OK;
+}
+
+
+int32_t
+vldGetTriggerCount(int32_t id, uint32_t *trigCnt)
+{
+  CHECKID(id);
+
+  VLOCK;
+  *trigCnt = vmeRead32(&VLDp[id]->trigCnt);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldResetMask(int32_t id, uint32_t resetMask)
+{
+  CHECKID(id);
+
+  if((resetMask & ~VLD_RESET_MASK) != 0)
+    {
+      printf("%s: WARN: Of resetMask (0x%x), only these are defined (0x%x)\n",
+	     __func__, resetMask, resetMask & VLD_RESET_MASK);
+    }
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, resetMask & VLD_RESET_MASK);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldResetI2C(int32_t id)
+{
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_I2C);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldResetJTAG(int32_t id)
+{
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_JTAG);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldSoftReset(int32_t id)
+  {
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_SOFT);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldResetClockDCM(int32_t id)
+{
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_CLK);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldResetMGT(int32_t id)
+{
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_MGT);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldHardClockReset(int32_t id)
+{
+  CHECKID(id);
+
+  VLOCK;
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_HARD_CLK);
   VUNLOCK;
 
   return OK;

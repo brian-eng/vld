@@ -31,6 +31,7 @@ typedef struct
   /* 0x0004 */ volatile uint32_t high;
 } ledControlRegs;
 
+
 #define LED_CONTROL_CALIBRATION_ENABLED   (1 << 0)
 #define LED_CONTROL_CH_ENABLE_MASK        0x0007FFFE
 #define LED_CONTROL_BLEACH_CTRL_MASK      0x07000000
@@ -98,6 +99,39 @@ typedef struct
 #define VLD_TRIGSRC_INTERNAL_SEQUENCE_ENABLE  (1 << 2)
 #define VLD_TRIGSRC_EXTERNAL_ENABLE           (1 << 4)
 
+/* 0x2C clock bits and mask  */
+#define VLD_CLOCK_INTERNAL          0x0
+#define VLD_CLOCK_EXTERNAL          0x1
+
+/* 0x68 bleachTime */
+#define VLD_BLEACHTIME_TIMER_MASK   0x0FFFFFFF
+#define VLD_BLEACHTIME_ENABLE       0xB0000000
+#define VLD_BLEACHTIME_ENABLE_MASK  0xF0000000
+
+/* 0x6C pulseLoad */
+#define VLD_PULSELOAD_DAC_D_MASK  0x3F
+#define VLD_PULSELOAD_DAC_D_ZERO  (1 << 6)
+#define VLD_PULSELOAD_GEN_TRIG    (1 << 7)
+
+/* 0x70 calibrationWidth */
+#define VLD_CALIBRATIONWIDTH_MASK   0x000003FF
+
+/* 0x74 analogCtrl */
+#define VLD_ANALOGCTRL_DELAY_MASK   0x000000FF
+#define VLD_ANALOGCTRL_RESERVED     (1 << 8)
+#define VLD_ANALOGCTRL_WIDTH_MASK   0x0000FE00
+
+/* 0x88 randomTrig */
+#define VLD_RANDOMTRIG_RATE_MASK        0x00000007
+#define VLD_RANDOMTRIG_ENABLE           (1 << 7)
+
+/* 0x8C periodicTrig */
+#define VLD_PERIODICTRIG_NPULSES_MASK   0x0000FFFF
+#define VLD_PERIODICTRIG_PERIOD_MASK    0xFFFF0000
+
+/* 0xDC trigCnt */
+#define VLD_TRIGCNT_MASK   0xFFFFFFFF
+
 
 /* 0x100 reset bits and masks */
 #define VLD_RESET_I2C                  (1<<1)
@@ -106,6 +140,7 @@ typedef struct
 #define VLD_RESET_CLK                  (1<<8)
 #define VLD_RESET_MGT                  (1<<10)
 #define VLD_RESET_HARD_CLK             (1<<21)
+#define VLD_RESET_MASK                 0x00200516
 
 
 /* vldInit initialization flag bits */
@@ -121,8 +156,10 @@ typedef struct
 int32_t  vldCheckAddresses();
 int32_t  vldInit(uint32_t vme_addr, uint32_t vme_incr, uint32_t nincr, uint32_t iFlag);
 int32_t  vldGStatus(int32_t pFlag);
+
 int32_t  vldGetFirmwareVersion(int32_t id);
+
 int32_t  vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t width);
 int32_t  vldGetTriggerDelayWidth(int32_t id, int32_t *delay, int32_t *delaystep, int32_t *width);
-int32_t  vldSetTriggerSource(int32_t id, uint32_t trigSrc);
-int32_t  vldGetTriggerSource(int32_t id, uint32_t *trigSrc);
+int32_t  vldSetTriggerSourceMask(int32_t id, uint32_t trigSrc);
+int32_t  vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc);
