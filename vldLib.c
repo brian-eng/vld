@@ -482,6 +482,23 @@ vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
   return OK;
 }
 
+int32_t
+vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable)
+{
+  uint32_t rval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  rval = vmeRead32(&VLDp[id]->bleachTime);
+
+  *timer = rval & VLD_BLEACHTIME_TIMER_MASK;
+
+  *enable = ((rval & VLD_BLEACHTIME_ENABLE_MASK) == VLD_BLEACHTIME_ENABLE );
+  VUNLOCK;
+
+  return OK;
+}
+
 
 
 int32_t
@@ -497,7 +514,19 @@ vldSetCalibrationPulseWidth(int32_t id, uint32_t width)
     }
 
   VLOCK;
-  vmeWrit32(&VLDp[id]->bleachTime, width);
+  vmeWrite32(&VLDp[id]->calibrationWidth, width);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldGetCalibrationPulseWidth(int32_t id, uint32_t *width)
+{
+  CHECKID(id);
+
+  VLOCK;
+  *width = vmeRead32(&VLDp[id]->calibrationWidth) & VLD_CALIBRATIONWIDTH_MASK;
   VUNLOCK;
 
   return OK;
@@ -531,6 +560,22 @@ vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth
 }
 
 int32_t
+vldGetAnalogSwitchControl(int32_t id, uint32_t *enableDelay, uint32_t *enableWidth)
+{
+  uint32_t rval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  rval = vmeRead32(&VLDp[id]->analogCtrl);
+
+  *enableDelay = rval & VLD_ANALOGCTRL_DELAY_MASK;
+  *enableWidth = (rval & VLD_ANALOGCTRL_WIDTH_MASK) >> 9;
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
 vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
 {
   uint32_t maxPrescale = 0x7;
@@ -546,9 +591,25 @@ vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
 
   VLOCK;
   if(prescale == 0)
-    prescale = vmeRead32(&VLDp[id]->randomTrig) & VLD_RANDOMTRIG_RATE_MASK;
+    prescale = vmeRead32(&VLDp[id]->randomTrig) & VLD_RANDOMTRIG_PRESCALE_MASK;
 
   vmeWrite32(&VLDp[id]->randomTrig, prescale | (prescale << 4) | enable);
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldGetRandomPulser(int32_t id, uint32_t *prescale, uint32_t *enable)
+{
+  uint32_t rval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  rval = vmeRead32(&VLDp[id]->randomTrig);
+
+  *prescale = rval & VLD_RANDOMTRIG_PRESCALE_MASK;
+  *enable = (rval & VLD_RANDOMTRIG_ENABLE) ? 1 : 0;
   VUNLOCK;
 
   return OK;
@@ -571,7 +632,7 @@ vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
   if(npulses > maxNpulses)
     {
       printf("%s: WARN: Invalid npulses (%u).  Set to = %u.\n",
-	     __func__, npulses, maxNpules);
+	     __func__, npulses, maxNpulses);
       npulses = maxNpulses;
     }
 
@@ -580,6 +641,22 @@ vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
     period = (vmeRead32(&VLDp[id]->periodicTrig) & VLD_PERIODICTRIG_PERIOD_MASK) >> 16;
 
   vmeWrite32(&VLDp[id]->periodicTrig, npulses | (period << 16));
+  VUNLOCK;
+
+  return OK;
+}
+
+int32_t
+vldGetPeriodicPulser(int32_t id, uint32_t *period, uint32_t *npulses)
+{
+  uint32_t rval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  rval = vmeRead32(&VLDp[id]->periodicTrig);
+
+  *period = rval & VLD_PERIODICTRIG_NPULSES_MASK;
+  *npulses = (rval & VLD_PERIODICTRIG_PERIOD_MASK) >> 16;
   VUNLOCK;
 
   return OK;

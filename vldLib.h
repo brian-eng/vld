@@ -122,7 +122,7 @@ typedef struct
 #define VLD_ANALOGCTRL_WIDTH_MASK   0x0000FE00
 
 /* 0x88 randomTrig */
-#define VLD_RANDOMTRIG_RATE_MASK        0x00000007
+#define VLD_RANDOMTRIG_PRESCALE_MASK    0x00000007
 #define VLD_RANDOMTRIG_ENABLE           (1 << 7)
 
 /* 0x8C periodicTrig */
@@ -161,5 +161,32 @@ int32_t  vldGetFirmwareVersion(int32_t id);
 
 int32_t  vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t width);
 int32_t  vldGetTriggerDelayWidth(int32_t id, int32_t *delay, int32_t *delaystep, int32_t *width);
+
 int32_t  vldSetTriggerSourceMask(int32_t id, uint32_t trigSrc);
 int32_t  vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc);
+
+int32_t  vldSetClockSource(int32_t id, uint32_t clkSrc);
+
+int32_t  vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable);
+int32_t  vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable);
+
+int32_t  vldSetCalibrationPulseWidth(int32_t id, uint32_t width);
+int32_t  vldGetCalibrationPulseWidth(int32_t id, uint32_t *width);
+
+int32_t  vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth);
+int32_t  vldGetAnalogSwitchControl(int32_t id, uint32_t *enableDelay, uint32_t *enableWidth);
+
+int32_t  vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable);
+int32_t  vldGetRandomPulser(int32_t id, uint32_t *prescale, uint32_t *enable);
+int32_t  vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses);
+int32_t  vldGetPeriodicPulser(int32_t id, uint32_t *period, uint32_t *npulses);
+
+int32_t  vldGetTriggerCount(int32_t id, uint32_t *trigCnt);
+
+int32_t  vldResetMask(int32_t id, uint32_t resetMask);
+int32_t  vldResetI2C(int32_t id);
+int32_t  vldResetJTAG(int32_t id);
+int32_t  vldSoftReset(int32_t id);
+int32_t  vldResetClockDCM(int32_t id);
+int32_t  vldResetMGT(int32_t id);
+int32_t  vldHardClockReset(int32_t id);
