@@ -11,6 +11,8 @@
  *
  */
 
+#include <unistd.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <stdio.h>
 #include "jvme.h"
@@ -37,6 +39,7 @@ volatile vldSerialRegs *VLDI2Cp[MAX_VME_SLOTS+1];
 int32_t vldID[MAX_VME_SLOTS+1];                    /**< array of slot numbers for TDs */
 unsigned long vldA24Offset = 0;          /* Difference in CPU A24 Base and VME A24 Base */
 uint32_t vldAddrList[MAX_VME_SLOTS+1];     /**< array of a24 addresses for TDs */
+uint16_t vldFWVers[MAX_VME_SLOTS+1];
 
 
 /*
@@ -243,6 +246,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 
 		  /* Get the Firmware Information and print out some details */
 		  firmwareInfo = vldGetFirmwareVersion(vldID[nVLD]);
+		  vldFWVers[boardID] = firmwareInfo & 0xFFFF;
 
 		  if(firmwareInfo>0)
 		    {
@@ -315,31 +319,174 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 
 }
 
+int32_t
+vldSlot(uint32_t index)
+{
+  if(index >= nVLD)
+    {
+      printf("%s: ERROR: Invalid index (%d)\n",
+	     __func__, index);
+      return ERROR;
+    }
+  return vldID[index];
+}
+
+uint32_t
+vldSlotMask()
+{
+  int32_t iv=0;
+  uint32_t dmask=0;
+
+  for(iv = 0; iv < nVLD; iv++)
+    {
+      dmask |= (1 << (vldID[iv]));
+    }
+
+  return dmask;
+}
 
 /*
  *  Show the settings and status of the initialized VLD
  *
  */
 
-int32_t
+void
 vldGStatus(int32_t pFlag)
 {
+  vldRegs *rb;
+  uint32_t iv, slot;
 
-  return OK;
+  rb = (vldRegs *)malloc((MAX_VME_SLOTS + 1) * sizeof(vldRegs));
+
+#ifndef READVLD
+#define READVLD(_id, _reg)			\
+  rb[_id]._reg = vmeRead32(&VLDp[_id]->_reg);
+#endif
+
+  VLOCK;
+  for(iv = 0; iv < nVLD; iv++)
+    {
+      slot = vldSlot(iv);
+      READVLD(slot, boardID);
+      READVLD(slot, trigDelay);
+      READVLD(slot, trigSrc);
+      READVLD(slot, clockSrc);
+      READVLD(slot, bleachTime);
+      READVLD(slot, calibrationWidth);
+      READVLD(slot, analogCtrl);
+      READVLD(slot, randomTrig);
+      READVLD(slot, periodicTrig);
+      READVLD(slot, trigCnt);
+    }
+  VUNLOCK;
+
+  printf("VLD Module Status Summary\n");
+
+  printf("         Firmware  Trigger Source........................            Clock...\n");
+  printf("Slot     Version   Periodic  Random    Sequence  External            Source\n");
+  printf("--------------------------------------------------------------------------------\n");
+  /* printf("13       0x1234    Enabled   Enabled   Enabled   Enabled             External"); */
+
+  for(iv = 0; iv < nVLD; iv++)
+    {
+      slot = vldSlot(iv);
+
+      /* Slot */
+      printf("%2d       ", iv);
+
+      printf("0x%04x    ", vldFWVers[slot]);
+
+      printf("%s  ", (rb[slot].trigSrc & VLD_TRIGSRC_INTERNAL_PERIODIC_ENABLE) ?
+	     "Enabled " : "Disabled");
+
+      printf("%s  ", (rb[slot].trigSrc & VLD_TRIGSRC_INTERNAL_RANDOM_ENABLE) ?
+	     "Enabled " : "Disabled");
+
+      printf("%s  ", (rb[slot].trigSrc & VLD_TRIGSRC_INTERNAL_SEQUENCE_ENABLE) ?
+	     "Enabled " : "Disabled");
+
+      printf("%s            ", (rb[slot].trigSrc & VLD_TRIGSRC_EXTERNAL_ENABLE) ?
+	     "Enabled " : "Disabled");
+
+      printf("%s", (rb[slot].clockSrc & VLD_CLOCK_EXTERNAL) ?
+	     "External" : "Internal");
+
+      printf("\n");
+    }
+
+  printf("\n");
+  printf("         Bleach Timer.....   Calibration.....    Analog Switch.....\n");
+  printf("Slot     Time[ms]  Status    Pulse Width[ns]     Delay[ns] Width[ns]\n");
+  printf("--------------------------------------------------------------------------------\n");
+  /* printf("13       123456789 Enabled   4092                1024      508"); */
+
+  for(iv = 0; iv < nVLD; iv++)
+    {
+      slot = vldSlot(iv);
+
+      /* Slot */
+      printf("%2d       ",iv);
+
+      printf("%10d ", (int)
+	     ((rb[slot].bleachTime & VLD_BLEACHTIME_TIMER_MASK) * 20 * 1024 * 1024) / 1000);
+
+      printf("%s  ",
+	     ((rb[slot].bleachTime & VLD_BLEACHTIME_ENABLE_MASK) == VLD_BLEACHTIME_ENABLE) ?
+	     "Enabled " : "Disabled");
+
+      printf("%4d                ",
+	     (rb[slot].calibrationWidth & VLD_CALIBRATIONWIDTH_MASK) * 4);
+
+      printf("%4d      ",
+	     (rb[slot].analogCtrl & VLD_ANALOGCTRL_DELAY_MASK) * 4);
+
+      printf("%3d",
+	     ((rb[slot].analogCtrl & VLD_ANALOGCTRL_WIDTH_MASK) >> 9) * 4);
+
+      printf("\n");
+    }
+
+  printf("\n");
+  printf("         Random Pulser..............   Periodic Pulser............\n");
+  printf("Slot     Prescale  Rate[kHz] Status    Period    npulses\n");
+  printf("--------------------------------------------------------------------------------\n");
+  /* printf("13       7         700000    Enabled   1234.123  12345151"); */
+
+  for(iv = 0; iv < nVLD; iv++)
+    {
+      slot = vldSlot(iv);
+
+      /* Slot */
+      printf("%2d       ", iv);
+
+      printf("%d         ",
+	     (rb[slot].randomTrig & VLD_RANDOMTRIG_PRESCALE_MASK));
+
+      printf("%6d   ",
+	     700000 >> (rb[slot].randomTrig & VLD_RANDOMTRIG_PRESCALE_MASK) );
+
+      printf("%s  ",
+	     (rb[slot].randomTrig & VLD_RANDOMTRIG_ENABLE) ? "Enabled " : "Disabled");
+
+      printf("%7d  ",
+	     120 + (30 * (rb[slot].periodicTrig & VLD_PERIODICTRIG_PERIOD_MASK)>>16));
+
+      printf("%d",
+	     rb[slot].periodicTrig & VLD_PERIODICTRIG_NPULSES_MASK);
+
+      printf("\n");
+    }
+
+  if(rb)
+    free(rb);
+
 }
 
 int32_t
 vldGetFirmwareVersion(int32_t id)
 {
   unsigned int rval=0;
-
-  if(id==0) id=vldID[0];
-
-  if(VLDp[id]==NULL)
-    {
-      printf("%s: ERROR: VLD in slot %d not initialized\n",__FUNCTION__,id);
-      return ERROR;
-    }
+  CHECKID(id);
 
   VLOCK;
   /* reset the VME_to_JTAG engine logic */
@@ -445,10 +592,71 @@ vldSetClockSource(int32_t id, uint32_t clkSrc)
 {
   CHECKID(id);
 
-  VLOCK;
+  if(clkSrc > 1)
+    {
+      printf("%s(%d): ERROR: Invalid clkSrc (%d)\n",
+	     __func__, id, clkSrc);
+      return ERROR;
+    }
 
+  VLOCK;
+  vmeWrite32(&VLDp[id]->clockSrc, clkSrc);
+  sleep(1);
+  vmeWrite32(&VLDp[id]->reset, VLD_RESET_CLK);
   VUNLOCK;
 
+  return OK;
+}
+
+int32_t
+vldLEDCalibration(int32_t id, uint32_t connector,
+		  uint32_t lochanEnableMask, uint32_t hichanEnableMask,
+		  uint32_t ctrlLDO, uint32_t enableLDO)
+{
+  uint32_t rval = 0;
+  CHECKID(id);
+
+  if(connector > 5)
+    {
+      printf("%s(%d): ERROR: Invalid connector (%d).\n",
+	     __func__, id, connector);
+      return ERROR;
+    }
+
+  if(lochanEnableMask > 0x0003FFFF)
+    {
+      printf("%s(%d): ERROR: Invalid lochanEnableMask (0x%x).\n",
+	     __func__, id, lochanEnableMask);
+      return ERROR;
+    }
+
+  if(hichanEnableMask > 0x0003FFFF)
+    {
+      printf("%s(%d): ERROR: Invalid hichanEnableMask (0x%x).\n",
+	     __func__, id, hichanEnableMask);
+      return ERROR;
+    }
+
+  if(ctrlLDO > 0x7)
+    {
+      printf("%s(%d): ERROR: Invalid ctrlLDO (0x%x)\n",
+	     __func__, id, ctrlLDO);
+      return ERROR;
+    }
+
+  enableLDO = enableLDO ? (LED_CONTROL_BLEACH_REG_ENABLE | LED_CONTROL_BLEACH_ENABLE) : 0;
+
+  VLOCK;
+  /* Set enable mask for channels #19 - #36 */
+  vmeWrite32(&VLDp[id]->output[connector].high, (hichanEnableMask << 1));
+
+  /* Set enable mask for channels #1 - #18, LDO control, and bleaching enable */
+  vmeWrite32(&VLDp[id]->output[connector].low_ctrl,
+	     (lochanEnableMask << 1) | (ctrlLDO << 24) | enableLDO);
+
+
+  /* Not sure if I set bit 0 or the firmware does.. and reports it back */
+  VUNLOCK;
   return OK;
 }
 
@@ -476,6 +684,12 @@ vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
 
   wval = timer | enable;
 
+  /*
+    "just want to make sure that the next write (data 0xB.....) will generate a rising edge"
+   */
+  if(enable)
+    vmeWrite32(&VLDp[id]->bleachTime, 0);
+
   vmeWrite32(&VLDp[id]->bleachTime, wval);
   VUNLOCK;
 
@@ -499,7 +713,21 @@ vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable)
   return OK;
 }
 
+int32_t
+vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples)
+{
+  uint32_t isample;
+  CHECKID(id);
 
+  VLOCK;
+  for(isample = 0; isample < nsamples; isample++)
+    {
+      vmeWrite32(&VLDp[id]->pulseLoad, dac_samples[isample]);
+    }
+  VUNLOCK;
+
+  return OK;
+}
 
 int32_t
 vldSetCalibrationPulseWidth(int32_t id, uint32_t width)

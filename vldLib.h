@@ -100,6 +100,7 @@ typedef struct
 #define VLD_TRIGSRC_EXTERNAL_ENABLE           (1 << 4)
 
 /* 0x2C clock bits and mask  */
+#define VLD_CLOCK_MASK              0x1
 #define VLD_CLOCK_INTERNAL          0x0
 #define VLD_CLOCK_EXTERNAL          0x1
 
@@ -155,7 +156,9 @@ typedef struct
 
 int32_t  vldCheckAddresses();
 int32_t  vldInit(uint32_t vme_addr, uint32_t vme_incr, uint32_t nincr, uint32_t iFlag);
-int32_t  vldGStatus(int32_t pFlag);
+int32_t  vldSlot(uint32_t index);
+uint32_t vldSlotMask();
+void     vldGStatus(int32_t pFlag);
 
 int32_t  vldGetFirmwareVersion(int32_t id);
 
