@@ -12,6 +12,7 @@
  *
  */
 
+/** \cond PRIVATE */
 #include <stdint.h>
 
 
@@ -24,6 +25,7 @@
 #define JOIN(x,y) _DO_JOIN(x,y)
 #define _DO_JOIN(x,y) x##y
 
+/** \endcond */
 
 typedef struct
 {
@@ -193,3 +195,5 @@ int32_t  vldSoftReset(int32_t id);
 int32_t  vldResetClockDCM(int32_t id);
 int32_t  vldResetMGT(int32_t id);
 int32_t  vldHardClockReset(int32_t id);
+
+#define vldG(_function, ...) {int32_t _iv; for(_iv = 0; _iv < nVLD; _iv) _function(## __VA_ARGS__);}

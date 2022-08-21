@@ -1,15 +1,19 @@
-/*
- * Copyright 2022, Jefferson Science Associates, LLC.
- * Subject to the terms in the LICENSE file found in the top-level directory.
+/**
+ * @copyright Copyright 2022, Jefferson Science Associates, LLC.
+ *            Subject to the terms in the LICENSE file found in the
+ *            top-level directory.
  *
- *     Authors: Bryan Moffit
- *              moffit@jlab.org                   Jefferson Lab, MS-12B3
- *              Phone: (757) 269-5660             12000 Jefferson Ave.
- *              Fax:   (757) 269-5800             Newport News, VA 23606
+ * @author    Bryan Moffit
+ *            moffit@jlab.org                   Jefferson Lab, MS-12B3
+ *            Phone: (757) 269-5660             12000 Jefferson Ave.
+ *            Fax:   (757) 269-5800             Newport News, VA 23606
  *
- * Description: Library for the JLab VME LED Driver
+ * @file      vldLib.c
+ * @brief     Library for the JLab VME LED Driver
  *
  */
+
+/** \cond PRIVATE */
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -18,7 +22,7 @@
 #include "jvme.h"
 #include "vldLib.h"
 
-/* Mutex to guard HV read/writes */
+/* Mutex to guard register read/writes */
 pthread_mutex_t vldMutex = PTHREAD_MUTEX_INITIALIZER;
 #define VLOCK   if(pthread_mutex_lock(&vldMutex)<0) perror("pthread_mutex_lock");
 #define VUNLOCK if(pthread_mutex_unlock(&vldMutex)<0) perror("pthread_mutex_unlock");
@@ -31,21 +35,24 @@ pthread_mutex_t vldMutex = PTHREAD_MUTEX_INITIALIZER;
       return ERROR;							\
     }
 
+/** \endcond */
+
 /* Globals */
 int32_t nVLD = 0;                        /* Number of initialized modules */
-volatile vldRegs *VLDp[MAX_VME_SLOTS+1];  /* pointer to VLD memory maps, index = slotID */
+volatile vldRegs *VLDp[MAX_VME_SLOTS+1];  /* pointer to memory maps, index = slotID */
 volatile vldSerialRegs *VLDJTAGp[MAX_VME_SLOTS+1];
 volatile vldSerialRegs *VLDI2Cp[MAX_VME_SLOTS+1];
-int32_t vldID[MAX_VME_SLOTS+1];                    /**< array of slot numbers for TDs */
+int32_t vldID[MAX_VME_SLOTS+1];                    /**< array of slot numbers */
 unsigned long vldA24Offset = 0;          /* Difference in CPU A24 Base and VME A24 Base */
-uint32_t vldAddrList[MAX_VME_SLOTS+1];     /**< array of a24 addresses for TDs */
+uint32_t vldAddrList[MAX_VME_SLOTS+1];     /**< array of a24 addresses */
 uint16_t vldFWVers[MAX_VME_SLOTS+1];
 
 
-/*
- *  DEBUG Routine to check the register map with the vldRegs structure
+/**
+ * @brief Check the register map
+ * @details DEBUG Routine to check the register map with the vldRegs structure
+ * @return OK if successful, otherwise ERROR
  */
-
 int32_t
 vldCheckAddresses()
 {
@@ -57,6 +64,7 @@ vldCheckAddresses()
 	 __func__);
 
   base = (uintptr_t) &fbase;
+/** \cond PRIVATE */
 #ifndef CHECKOFFSET
 #define CHECKOFFSET(_x, _y)						\
   offset = ((uintptr_t) &fbase._y) - base;				\
@@ -68,6 +76,7 @@ vldCheckAddresses()
   rval = ERROR;								\
   }
 #endif
+/** \endcond */
 
   CHECKOFFSET(0x0C, trigDelay);
   CHECKOFFSET(0x68, bleachTime);
@@ -76,11 +85,24 @@ vldCheckAddresses()
   return rval;
 }
 
-/*
- *    Initialize a bunch of VLD.
- *       Locate them by checking at addr and increment by addr_inc, nfind times.
+/**
+ * @brief Initialize the VLD Library
+ *
+ * @details Increment through A24 addresses and initialize library
+ * with modules that match the VLD boardID and supported firmware version(s).
+ *
+ * @param[in] addr First address to check
+ * @param[in] addr_inc The inc of addr
+ * @param[in] nfind number of addr_inc
+ *
+ * @param[in] iFlag Initialization mask
+ *       bit| desc
+ *       ---|-------------------------
+ *        0 | No module initialization
+ *        1 | Skip the firmware check
+ *        2 | Increment Using user initialized vldAddrList array
+ * @return OK if successful, otherwise ERROR
  */
-
 int32_t
 vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 {
@@ -128,7 +150,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
   else if(addr > 0x00ffffff)
     { /* A32 Addressing */
       printf("%s: ERROR: A32 Addressing not allowed for VLD configuration space\n",
-	     __FUNCTION__);
+	     __func__);
       return(ERROR);
     }
   else
@@ -136,7 +158,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
       if(addr < 22)
 	{ /* First argument is a slot number, instead of VME address */
 	  printf("%s: Initializing using slot number %d (VME address 0x%x)\n",
-		 __FUNCTION__,addr,addr<<19);
+		 __func__,addr,addr<<19);
 	  addr = addr<<19; // Shift to VME A24 address;
 
 	  /* If addr_inc is also in slot number form, shift it */
@@ -179,10 +201,10 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
     {
 #ifdef VXWORKS
       printf("%s: ERROR in sysBusToLocalAdrs(0x39,0x%x,&laddr) \n",
-	     __FUNCTION__,addr);
+	     __func__,addr);
 #else
       printf("%s: ERROR in vmeBusToLocalAdrs(0x39,0x%x,&laddr) \n",
-	     __FUNCTION__,addr);
+	     __func__,addr);
 #endif
       return(ERROR);
     }
@@ -212,10 +234,10 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 #ifdef SHOWERRORS
 #ifdef VXWORKS
 	  printf("%s: ERROR: No addressable board at addr=0x%x\n",
-		 __FUNCTION__,(UINT32) vld);
+		 __func__,(UINT32) vld);
 #else
 	  printf("%s: ERROR: No addressable board at VME (Local) addr=0x%x (0x%x)\n",
-		 __FUNCTION__,
+		 __func__,
 		 (UINT32) laddr_inc-vldA24Offset, (UINT32) vld);
 #endif
 #endif /* SUPPRESSERRORSES */
@@ -263,13 +285,13 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 			  if(noFirmwareCheck)
 			    {
 			      printf("%s: WARN: Type %x Firmware version (0x%x) not supported by this driver.\n  Supported: Type %x version 0x%x (IGNORED)\n",
-				     __FUNCTION__,
+				     __func__,
 				     vldType,vldVersion,VLD_SUPPORTED_TYPE,VLD_SUPPORTED_FIRMWARE);
 			    }
 			  else
 			    {
 			      printf("%s: ERROR: Type %x Firmware version (0x%x) not supported by this driver.\n  Supported Type %x version 0x%x\n",
-				     __FUNCTION__,
+				     __func__,
 				     vldType,vldVersion,VLD_SUPPORTED_TYPE,VLD_SUPPORTED_FIRMWARE);
 			      VLDp[boardID]=NULL;
 			      continue;
@@ -279,7 +301,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 		  else
 		    {
 		      printf("%s:  ERROR: Invalid firmware 0x%08x\n",
-			     __FUNCTION__,firmwareInfo);
+			     __func__,firmwareInfo);
 		      return ERROR;
 		    }
 
@@ -303,7 +325,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
       if(nVLD>0)
 	{
 	  printf("%s: %d VLD(s) successfully mapped (not initialized)\n",
-		 __FUNCTION__,nVLD);
+		 __func__,nVLD);
 	  return OK;
 	}
     }
@@ -311,7 +333,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
   if(nVLD==0)
     {
       printf("%s: ERROR: Unable to initialize any VLD modules\n",
-	     __FUNCTION__);
+	     __func__);
       return ERROR;
     }
 
@@ -319,6 +341,12 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 
 }
 
+/**
+ * @brief Return the slot ID
+ * @details Given the order of initialization, return the slot ID of the provided index
+ * @param[in] index
+ * @return slot ID if successful, otherwise ERROR
+ */
 int32_t
 vldSlot(uint32_t index)
 {
@@ -358,10 +386,12 @@ vldGStatus(int32_t pFlag)
 
   rb = (vldRegs *)malloc((MAX_VME_SLOTS + 1) * sizeof(vldRegs));
 
+/** \cond PRIVATE */
 #ifndef READVLD
 #define READVLD(_id, _reg)			\
   rb[_id]._reg = vmeRead32(&VLDp[_id]->_reg);
 #endif
+/** \endcond */
 
   VLOCK;
   for(iv = 0; iv < nVLD; iv++)
@@ -516,14 +546,14 @@ vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t wi
 
   if((delay<0) || (delay>0x7F))
     {
-      printf("%s: ERROR: Invalid delay (%d).  Must be <= %d\n",
-	     __FUNCTION__,delay, 0x7f);
+      printf("%s(%d): ERROR: Invalid delay (%d).  Must be <= %d\n",
+	     __func__, id,delay, 0x7f);
       return ERROR;
     }
   if((width<0) || (width> 0x1F))
     {
-      printf("%s: ERROR: Invalid width (%d).  Must be <= %d\n",
-	     __FUNCTION__,width, 0x1F);
+      printf("%s(%d): ERROR: Invalid width (%d).  Must be <= %d\n",
+	     __func__, id,width, 0x1F);
     }
 
   delaystep = (delaystep ? VLD_TRIGDELAY_16NS_STEP_ENABLE : 0);
@@ -671,8 +701,8 @@ vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
 
   if(timer > VLD_BLEACHTIME_TIMER_MASK)
     {
-      printf("%s: WARN: Invalid Bleach time %u (0x%x).  Setting to Max (0x%x)\n",
-	     __func__, timer, timer, VLD_BLEACHTIME_TIMER_MASK);
+      printf("%s(%d): WARN: Invalid Bleach time %u (0x%x).  Setting to Max (0x%x)\n",
+	     __func__, id, timer, timer, VLD_BLEACHTIME_TIMER_MASK);
       timer = VLD_BLEACHTIME_TIMER_MASK;
     }
 
@@ -736,8 +766,8 @@ vldSetCalibrationPulseWidth(int32_t id, uint32_t width)
 
   if(width > VLD_CALIBRATIONWIDTH_MASK)
     {
-      printf("%s: ERROR: Invalid Calibration Pulse Width (0x%x).  Max = 0x%x\n",
-	     __func__, width, VLD_CALIBRATIONWIDTH_MASK);
+      printf("%s(%d): ERROR: Invalid Calibration Pulse Width (0x%x).  Max = 0x%x\n",
+	     __func__, id, width, VLD_CALIBRATIONWIDTH_MASK);
       return ERROR;
     }
 
@@ -768,15 +798,15 @@ vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth
 
   if(enableDelay > maxDelay)
     {
-      printf("%s: ERROR: Invalid enableDelay (0%x).  Max = 0x%x\n",
-	     __func__, enableDelay, maxDelay);
+      printf("%s(%d): ERROR: Invalid enableDelay (0%x).  Max = 0x%x\n",
+	     __func__, id, enableDelay, maxDelay);
       return ERROR;
     }
 
   if(enableWidth > maxWidth)
     {
-      printf("%s: ERROR: Invalid enableWidth (0%x).  Max = 0x%x\n",
-	     __func__, enableWidth, maxWidth);
+      printf("%s(%d): ERROR: Invalid enableWidth (0%x).  Max = 0x%x\n",
+	     __func__, id, enableWidth, maxWidth);
       return ERROR;
     }
 
@@ -811,8 +841,8 @@ vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
 
   if(prescale > maxPrescale)
     {
-      printf("%s: ERROR: Invalid prescale 0x%x. Max = %d\n",
-	     __func__, prescale, maxPrescale);
+      printf("%s(%d): ERROR: Invalid prescale 0x%x. Max = %d\n",
+	     __func__, id, prescale, maxPrescale);
     }
 
   enable = enable ? VLD_RANDOMTRIG_ENABLE : 0;
@@ -852,15 +882,15 @@ vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
 
   if(period > maxPeriod)
     {
-      printf("%s: ERROR: Invalid period (%u).  Max = %u.\n",
-	     __func__, period, maxPeriod);
+      printf("%s(%d): ERROR: Invalid period (%u).  Max = %u.\n",
+	     __func__, id, period, maxPeriod);
       return ERROR;
     }
 
   if(npulses > maxNpulses)
     {
-      printf("%s: WARN: Invalid npulses (%u).  Set to = %u.\n",
-	     __func__, npulses, maxNpulses);
+      printf("%s(%d): WARN: Invalid npulses (%u).  Set to = %u.\n",
+	     __func__, id, npulses, maxNpulses);
       npulses = maxNpulses;
     }
 
@@ -910,8 +940,8 @@ vldResetMask(int32_t id, uint32_t resetMask)
 
   if((resetMask & ~VLD_RESET_MASK) != 0)
     {
-      printf("%s: WARN: Of resetMask (0x%x), only these are defined (0x%x)\n",
-	     __func__, resetMask, resetMask & VLD_RESET_MASK);
+      printf("%s(%d): WARN: Of resetMask (0x%x), only these are defined (0x%x)\n",
+	     __func__, id, resetMask, resetMask & VLD_RESET_MASK);
     }
 
   VLOCK;
