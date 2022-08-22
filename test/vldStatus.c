@@ -30,7 +30,7 @@ main(int32_t argc, char *argv[])
     }
   else
     {
-      address = 0x00a00000; // my test module
+      address = 7; // my test module
     }
 
   printf("\n %s: address = 0x%08x\n", argv[0], address);
@@ -43,8 +43,8 @@ main(int32_t argc, char *argv[])
   vmeCheckMutexHealth(1);
   vmeBusLock();
 
-  vldInit(address, VLD_INIT_DEBUG);
-  vldStatus(1);
+  vldInit(address<<19, 0, 1, 0);
+  vldGStatus(1);
 
  CLOSE:
 

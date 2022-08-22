@@ -71,19 +71,12 @@ typedef struct
 } vldSerialRegs;
 
 /* Firmware Masks */
-#define VLD_FIRMWARE_ID_MASK              0xFFFF0000
-#define VLD_FIRMWARE_TYPE_MASK            0x0000F000
-#define VLD_FIRMWARE_TYPE_PROD            1
-#define VLD_FIRMWARE_TYPE_P               3
-#define VLD_FIRMWARE_MAJOR_VERSION_MASK   0x00000FF0
-#define VLD_FIRWMARE_MINOR_VERSION_MASK   0x0000000F
+#define VLD_FIRMWARE_ID_MASK              0x000000FF
 
-#define VLD_SUPPORTED_FIRMWARE 0x81
-#define VLD_SUPPORTED_TYPE     VLD_FIRMWARE_TYPE_P
 
 /* 0x0 boardID bits and masks */
-#define VLD_BOARDID_TYPE_VLD            0x1D
-#define VLD_BOARDID_TYPE_MASK     0xFF000000
+#define VLD_BOARDID_TYPE_VLD          0x1EDD
+#define VLD_BOARDID_TYPE_MASK     0xFFFF0000
 #define VLD_BOARDID_VME64X        (1 << 13)
 #define VLD_BOARDID_PROD_MASK     0x00FF0000
 #define VLD_BOARDID_GEOADR_MASK   0x00001F00
@@ -163,8 +156,6 @@ uint32_t vldSlotMask();
 int32_t  vldGetGeoAddress(int id);
 
 void     vldGStatus(int32_t pFlag);
-
-int32_t  vldGetFirmwareVersion(int32_t id);
 
 int32_t  vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t width);
 int32_t  vldGetTriggerDelayWidth(int32_t id, int32_t *delay, int32_t *delaystep, int32_t *width);

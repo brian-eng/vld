@@ -106,7 +106,7 @@ vldCheckAddresses()
 int32_t
 vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 {
-  int32_t useList=0, noBoardInit=0, noFirmwareCheck=0;
+  int32_t useList=0, noBoardInit=0;
   int32_t islot, ivld;
   int32_t res;
   uint32_t rdata, boardID;
@@ -120,11 +120,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
     {
       noBoardInit = 1;
     }
-  /* Check if we're skipping the firmware check */
-  if(iFlag&VLD_INIT_SKIP_FIRMWARE_CHECK)
-    {
-      noFirmwareCheck=1;
-    }
+
   /* Check if we're initializing using a list */
   if(iFlag&VLD_INIT_USE_ADDR_LIST)
     {
@@ -137,7 +133,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
       useList=1;
       nfind=16;
 
-      /* Loop through JLab Standard GEOADDR to VME addresses to make a list */
+      /* Loop through JLab VXS Weiner Crate GEOADDR to VME addresses to make a list */
       for(islot=3; islot<11; islot++) /* First 8 */
 	vldAddrList[islot-3] = (islot<<19);
 
@@ -245,7 +241,7 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
       else
 	{
 	  /* Check that it is a VLD */
-	  if(((rdata&VLD_BOARDID_TYPE_MASK)>>24) != VLD_BOARDID_TYPE_VLD)
+	  if(((rdata&VLD_BOARDID_TYPE_MASK)>>16) != VLD_BOARDID_TYPE_VLD)
 	    {
 	      printf(" WARN: For board at VME addr=0x%x, Invalid Board ID: 0x%x\n",
 		     (UINT32)(laddr_inc - vldA24Offset), rdata);
@@ -264,52 +260,22 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 	      else
 		{
 		  VLDp[boardID] = (vldRegs *)(laddr_inc);
-		  VLDJTAGp[boardID] = (vldSerialRegs *)(laddr_inc + 0x10000);
-		  VLDI2Cp[boardID] = (vldSerialRegs *)(laddr_inc + 0x40000);
 		  vldID[nVLD] = boardID;
+		  unsigned long fwaddr = (unsigned long) (laddr_inc + 0x7c);
+		  firmwareInfo = vmeRead32((volatile uint32_t *)fwaddr) & VLD_FIRMWARE_ID_MASK;
+		  vldFWVers[boardID] = firmwareInfo;
 
-		  /* Get the Firmware Information and print out some details */
-		  firmwareInfo = vldGetFirmwareVersion(vldID[nVLD]);
-		  vldFWVers[boardID] = firmwareInfo & 0xFFFF;
-
-		  if(firmwareInfo>0)
-		    {
-		      printf("  User ID: 0x%x \tFirmware (type - revision): %X - %x.%x\n",
-			     (firmwareInfo&VLD_FIRMWARE_ID_MASK)>>16,
-			     (firmwareInfo&VLD_FIRMWARE_TYPE_MASK)>>12,
-			     (firmwareInfo&VLD_FIRMWARE_MAJOR_VERSION_MASK)>>4,
-			     firmwareInfo&VLD_FIRWMARE_MINOR_VERSION_MASK);
-
-		      vldVersion = firmwareInfo&0xFFF;
-		      vldType    = (firmwareInfo&VLD_FIRMWARE_TYPE_MASK)>>12;
-		      if((vldVersion < VLD_SUPPORTED_FIRMWARE) || (vldType!=VLD_SUPPORTED_TYPE))
-			{
-			  if(noFirmwareCheck)
-			    {
-			      printf("%s: WARN: Type %x Firmware version (0x%x) not supported by this driver.\n  Supported: Type %x version 0x%x (IGNORED)\n",
-				     __func__,
-				     vldType,vldVersion,VLD_SUPPORTED_TYPE,VLD_SUPPORTED_FIRMWARE);
-			    }
-			  else
-			    {
-			      printf("%s: ERROR: Type %x Firmware version (0x%x) not supported by this driver.\n  Supported Type %x version 0x%x\n",
-				     __func__,
-				     vldType,vldVersion,VLD_SUPPORTED_TYPE,VLD_SUPPORTED_FIRMWARE);
-			      VLDp[boardID]=NULL;
-			      continue;
-			    }
-			}
-		    }
-		  else
+		  if(firmwareInfo <= 0)
 		    {
 		      printf("%s:  ERROR: Invalid firmware 0x%08x\n",
 			     __func__,firmwareInfo);
 		      return ERROR;
 		    }
 
-		  printf("Initialized VLD %2d  Slot # %2d at address 0x%08lx (0x%08x) \n",
-			 nVLD, vldID[nVLD],(unsigned long) VLDp[(vldID[nVLD])],
-			 (UINT32)((unsigned long)VLDp[(vldID[nVLD])]-vldA24Offset));
+		  printf("Initialized VLD %2d  FW 0x%2x Slot #%d at address 0x%08lx (0x%08x) \n",
+			 nVLD, firmwareInfo, vldID[nVLD],
+			 (unsigned long) VLDp[(vldID[nVLD])],
+			 (uint32_t)((unsigned long)VLDp[(vldID[nVLD])]-vldA24Offset));
 		}
 	    }
 	  nVLD++;
@@ -448,7 +414,7 @@ vldGStatus(int32_t pFlag)
       /* Slot */
       printf("%2d       ", iv);
 
-      printf("0x%04x    ", vldFWVers[slot]);
+      printf("0x%02x      ", vldFWVers[slot]);
 
       printf("%s  ", (rb[slot].trigSrc & VLD_TRIGSRC_INTERNAL_PERIODIC_ENABLE) ?
 	     "Enabled " : "Disabled");
@@ -534,38 +500,6 @@ vldGStatus(int32_t pFlag)
   if(rb)
     free(rb);
 
-}
-
-/**
- * @brief Return the firmware version
- * @details Perform a read using the JTAG registers to obtain the firmware version
- * @param[in] id Slot ID
- * @return The VLDs firmware version, if successful.  Otherwise ERROR.
- */
-int32_t
-vldGetFirmwareVersion(int32_t id)
-{
-  unsigned int rval=0;
-  CHECKID(id);
-
-  VLOCK;
-  /* reset the VME_to_JTAG engine logic */
-  vmeWrite32(&VLDp[id]->reset,VLD_RESET_JTAG);
-
-  /* Reset FPGA JTAG to "reset_idle" state */
-  vmeWrite32(&VLDJTAGp[id]->data[(0x003C)>>2],0);
-
-  /* enable the user_code readback */
-  vmeWrite32(&VLDJTAGp[id]->data[(0x092C)>>2],0x3c8);
-
-  /* shift in 32-bit to FPGA JTAG */
-  vmeWrite32(&VLDJTAGp[id]->data[(0x1F1C)>>2],0);
-
-  /* Readback the firmware version */
-  rval = vmeRead32(&VLDJTAGp[id]->data[(0x1F1C)>>2]);
-  VUNLOCK;
-
-  return rval;
 }
 
 /**
