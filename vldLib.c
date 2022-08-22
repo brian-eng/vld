@@ -870,6 +870,7 @@ vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples)
 	  vmeWrite32(&VLDp[id]->pulseLoad, wval);
 	  wval = 0; // clear for next samples */
 	}
+      isample++;
     }
   VUNLOCK;
 
@@ -897,8 +898,8 @@ vldLoadPulse32(int32_t id, uint32_t *dac_samples, uint32_t nsamples)
   while(isample < nsamples)
     {
       wval = dac_samples[isample];
-
       vmeWrite32(&VLDp[id]->pulseLoad, wval);
+      isample++;
     }
   VUNLOCK;
 

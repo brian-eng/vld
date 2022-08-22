@@ -147,7 +147,10 @@ VLDtest7(unsigned int islot)
   getchar();
 
   /* disable the trigger: */
-  vldGetTriggerSourceMask(islot, 0);
+  vldSetTriggerSourceMask(islot, 0);
   printf("\n Trigger disabled \n");
+
+  if(dac_samples)
+    free(dac_samples);
 
 }
