@@ -264,6 +264,8 @@ vldInit(uint32_t addr, uint32_t addr_inc, uint32_t nfind, uint32_t iFlag)
 	      else
 		{
 		  VLDp[boardID] = (vldRegs *)(laddr_inc);
+		  VLDJTAGp[boardID] = (vldSerialRegs *)(laddr_inc + 0x10000);
+		  VLDI2Cp[boardID] = (vldSerialRegs *)(laddr_inc + 0x40000);
 		  vldID[nVLD] = boardID;
 
 		  /* Get the Firmware Information and print out some details */
@@ -377,6 +379,24 @@ vldSlotMask()
   return dmask;
 }
 
+/**
+ * @brief Return the geographic address
+ * @details Return the geographic address of the specified module
+ * @param[in] id Slot ID
+ * @return Geographic address, if successful.  Otherwise ERROR.
+ */
+int32_t
+vldGetGeoAddress(int id)
+{
+  int32_t rval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  rval = (vmeRead32(&VLDp[id]->boardID) & VLD_BOARDID_GEOADR_MASK)>>8;
+  VUNLOCK;
+
+  return rval;
+}
 
 /**
  * @brief Show the settings and status of the initialized VLD

@@ -160,6 +160,8 @@ int32_t  vldCheckAddresses();
 int32_t  vldInit(uint32_t vme_addr, uint32_t vme_incr, uint32_t nincr, uint32_t iFlag);
 int32_t  vldSlot(uint32_t index);
 uint32_t vldSlotMask();
+int32_t  vldGetGeoAddress(int id);
+
 void     vldGStatus(int32_t pFlag);
 
 int32_t  vldGetFirmwareVersion(int32_t id);

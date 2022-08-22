@@ -1,13 +1,57 @@
 VME LED Driver library
 
 * How to use
+- For use with JLab compiled gefvme kernel driver.
 
 ** =jvme=
-
+- install the jvme library
+  https://github.com/JeffersonLab/jvme.git
+  
 ** compilation
+- with the environment defined from the jvme install (=LINUXVME_LIB=, =LINUXVME_INC=) build and install the library
+  #+begin_src shell
+make install
+  #+end_src
 
 ** test program
+- In the test directory, there's a program to show the status of a VLD at a specified slot
+- compile with
+  #+begin_src shell
+    cd test
+    make
+  #+end_src
+- execute
+  #+begin_src shell
+    ./vldStatus <slotnumber>
+  #+end_src
 
 ** William's examples
+- The examples =VLDtest5=, =VLDtest6=, =VLDtest7=, cited in the VLD Manual, were ported for use with this library
+  - =VLDtest5=: VLD calibration pulse shape loading
+  - =VLDtest6=: VLD test, channel by channel calibration, and connector by connector Bleaching test
+  - =VLDtest7=: VLD clock source switching and trigger source switching
+- compile with
+  #+begin_src shell
+    cd examples
+    make
+  #+end_src
+- execute with
+  #+begin_src shell
+    ./VLDtest5 <slotnumber>
+    ./VLDtest6 <slotnumber>
+    ./VLDtest7 <slotnumber>
+  #+end_src
+
+** firmware update
+- The =VLDtest2=: VLD firmware update, was ported for use with this library.
+- compile with
+  #+begin_src shell
+    cd firmware
+    make
+  #+end_src
+- execute with
+  #+begin_src shell
+    ./vldFirmwareUpdate <slotnumber> <firmware svf file>
+  #+end_src
 
 
