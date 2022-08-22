@@ -447,7 +447,7 @@ vldGStatus(int32_t pFlag)
       /* Slot */
       printf("%2d       ",iv);
 
-      printf("%10d ", (int)
+      printf("%10u ", (int)
 	     ((rb[slot].bleachTime & VLD_BLEACHTIME_TIMER_MASK) * 20 * 1024 * 1024) / 1000);
 
       printf("%s  ",
