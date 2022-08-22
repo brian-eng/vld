@@ -900,13 +900,51 @@ vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable)
 int32_t
 vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples)
 {
-  uint32_t isample;
+  uint32_t isample = 0, ibyte = 0, wval = 0;
   CHECKID(id);
 
   VLOCK;
-  for(isample = 0; isample < nsamples; isample++)
+  /* loop through and write 4 byte values out of the 1 byte samples */
+  while(isample < nsamples)
     {
-      vmeWrite32(&VLDp[id]->pulseLoad, dac_samples[isample]);
+      ibyte = (isample % 4);
+      wval |= (dac_samples[isample]) << (ibyte*8);
+
+      /* write if on the last byte of wval, or the last byte of array */
+      if((ibyte == 3) || (isample == (nsamples - 1)))
+	{
+	  vmeWrite32(&VLDp[id]->pulseLoad, wval);
+	  wval = 0; // clear for next samples */
+	}
+    }
+  VUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @brief 32bit Pulse Shape loading routine
+ * @details Load a 32bit pulse shape into the specified module.  Each
+ * index, for this routine, represents 4 samples beginning with the
+ * LSB.
+ * @param[in] id Slot ID
+ * @param[in] dac_samples Address of Array of 32bit DAC samples
+ * @param[in] nsamples number of 32bit values to write
+ * @return Description
+ */
+int32_t
+vldLoadPulse32(int32_t id, uint32_t *dac_samples, uint32_t nsamples)
+{
+  uint32_t isample = 0, wval = 0;
+  CHECKID(id);
+
+  VLOCK;
+  /* loop through and write 4 byte values out of the 1 byte samples */
+  while(isample < nsamples)
+    {
+      wval = dac_samples[isample];
+
+      vmeWrite32(&VLDp[id]->pulseLoad, wval);
     }
   VUNLOCK;
 

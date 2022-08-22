@@ -173,8 +173,15 @@ int32_t  vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc);
 int32_t  vldSetClockSource(int32_t id, uint32_t clkSrc);
 int32_t  vldGetClockSource(int32_t id, uint32_t *clkSrc);
 
+int32_t  vldLEDCalibration(int32_t id, uint32_t connector,
+			   uint32_t lochanEnableMask, uint32_t hichanEnableMask,
+			   uint32_t ctrlLDO, uint32_t enableLDO);
+
 int32_t  vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable);
 int32_t  vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable);
+
+int32_t  vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples);
+int32_t  vldLoadPulse32(int32_t id, uint32_t *dac_samples, uint32_t nsamples);
 
 int32_t  vldSetCalibrationPulseWidth(int32_t id, uint32_t width);
 int32_t  vldGetCalibrationPulseWidth(int32_t id, uint32_t *width);
