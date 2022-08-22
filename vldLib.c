@@ -359,6 +359,10 @@ vldSlot(uint32_t index)
   return vldID[index];
 }
 
+/**
+ * @brief Return a mask of initialized VLD slotIDs
+ * @return a mask of initialized VLD slotIDs
+ */
 uint32_t
 vldSlotMask()
 {
@@ -373,11 +377,11 @@ vldSlotMask()
   return dmask;
 }
 
-/*
- *  Show the settings and status of the initialized VLD
- *
- */
 
+/**
+ * @brief Show the settings and status of the initialized VLD
+ * @param[in] pFlag unused
+ */
 void
 vldGStatus(int32_t pFlag)
 {
@@ -512,6 +516,12 @@ vldGStatus(int32_t pFlag)
 
 }
 
+/**
+ * @brief Return the firmware version
+ * @details Perform a read using the JTAG registers to obtain the firmware version
+ * @param[in] id Slot ID
+ * @return The VLDs firmware version, if successful.  Otherwise ERROR.
+ */
 int32_t
 vldGetFirmwareVersion(int32_t id)
 {
@@ -538,6 +548,29 @@ vldGetFirmwareVersion(int32_t id)
   return rval;
 }
 
+/**
+ * @brief Set the trigger delay and pulse width
+
+ * @details For the specified slot id, update the trigger delay and
+ * pulse width.
+ * The output pulse delay is determined by
+ *
+ *     out_delay [ns] = 1024 * (delaystep) + (delay + 1) * 4 * 4**(delaystep)
+ *
+ * The output pulse width is determined by
+ *
+ *     out_width [ns] = (width + 1) * 4
+ *
+ * @param[in] id Slot ID
+ * @param[in] delay `[0,127]` Delay value, units determined by delaystep
+ * @param[in] delaystep `[0,1]` Delay units
+ *     delaystep | value
+ *     ----------|-------
+ *      0        | 4ns
+ *      1        | 16ns
+ * @param[in] width `[0, 31]` Width value, units of `4ns`
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t width)
 {
@@ -567,6 +600,24 @@ vldSetTriggerDelayWidth(int32_t id, int32_t delay, int32_t delaystep, int32_t wi
   return OK;
 }
 
+/**
+ * @brief Get the trigger pulse delay and width parameters
+ * @details For the specified slot id, return the trigger delay and
+ * pulse width parameters.
+ * The output pulse delay is determined by
+ *
+ *     out_delay [ns] = 1024 * (delaystep) + (delay + 1) * 4 * 4**(delaystep)
+ *
+ * The output pulse width is determined by
+ *
+ *     out_width [ns] = (width + 1) * 4
+ *
+ * @param[in] id Slot ID
+ * @param[out] delay Delay value, units determined by delaystep
+ * @param[out] delaystep Delay units
+ * @param[out] width Width value
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetTriggerDelayWidth(int32_t id, int32_t *delay, int32_t *delaystep, int32_t *width)
 {
@@ -585,6 +636,20 @@ vldGetTriggerDelayWidth(int32_t id, int32_t *delay, int32_t *delaystep, int32_t 
   return OK;
 }
 
+/**
+ * @brief Set the trigger source mask
+ * @details Set the trigger source of the specified VLD using the bits:
+ *    bit | trigger source
+ *       -|-
+ *     0  | internal periodic
+ *     1  | internal random
+ *     2  | internal sequence
+ *     4  | external input
+ *
+ * @param[in] id Slot ID
+ * @param[in] trigSrc trigger source mask
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetTriggerSourceMask(int32_t id, uint32_t trigSrc)
 {
@@ -604,6 +669,19 @@ vldSetTriggerSourceMask(int32_t id, uint32_t trigSrc)
   return OK;
 }
 
+/**
+ * @brief Get the trigger source mask
+ * @details Get the trigger source of the specified VLD. Trigger bits are:
+ *    bit | trigger source
+ *       -|-
+ *     0  | internal periodic
+ *     1  | internal random
+ *     2  | internal sequence
+ *     4  | external input
+ * @param[in] id Slot ID
+ * @param[out] trigSrc Enabled Trigger Source mask
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc)
 {
@@ -617,6 +695,17 @@ vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc)
 }
 
 
+/**
+ * @brief Set the clock source
+ * @details Set the clock source for the specified VLD modlue
+ * @param[in] id Slot ID
+ * @param[in] clkSrc `[0,1]` Selected Clock Source
+ *       clkSrc | desc
+ *             -|-
+ *         0    | Onboard Oscillator
+ *         1    | External LEMO connector input
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetClockSource(int32_t id, uint32_t clkSrc)
 {
@@ -638,6 +727,40 @@ vldSetClockSource(int32_t id, uint32_t clkSrc)
   return OK;
 }
 
+/**
+ * @brief Get the clock source
+ * @details Get the clock source for the specified VLD modlue
+ * @param[in] id Slot ID
+ * @param[out] clkSrc clkSrc `[0,1]` Selected Clock Source
+ *       clkSrc | desc
+ *             -|-
+ *         0    | Onboard Oscillator
+ *         1    | External LEMO connector input
+ * @return If successful, OK.  Otherwise ERROR.
+ */
+int32_t
+vldGetClockSource(int32_t id, uint32_t *clkSrc)
+{
+  CHECKID(id);
+
+  VLOCK;
+  *clkSrc = vmeRead32(&VLDp[id]->clockSrc) & VLD_CLOCK_MASK;
+  VUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @brief Control the bleach current setting
+ * @details Control the beach current setting for the specified slot ID and connector
+ * @param[in] id Slot ID
+ * @param[in] connector `[0,4]` Connector ID
+ * @param[in] lochanEnableMask `[0,0x3FFFF]` Enable mask for the lower 18 channels.
+ * @param[in] hichanEnableMask `[0,0x3FFFF]` Enable mask for the upper 18 channels.
+ * @param[in] ctrlLDO `[0,7]` Bleach current setting
+ * @param[in] enableLDO `[0,1]` Disable (0) / Enable (1) LDO Regulator
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldLEDCalibration(int32_t id, uint32_t connector,
 		  uint32_t lochanEnableMask, uint32_t hichanEnableMask,
@@ -646,7 +769,7 @@ vldLEDCalibration(int32_t id, uint32_t connector,
   uint32_t rval = 0;
   CHECKID(id);
 
-  if(connector > 5)
+  if(connector > 4)
     {
       printf("%s(%d): ERROR: Invalid connector (%d).\n",
 	     __func__, id, connector);
@@ -690,8 +813,16 @@ vldLEDCalibration(int32_t id, uint32_t connector,
   return OK;
 }
 
-/*
-  if timer == 0, use the current register value
+/**
+ * @brief Set the bleaching timer
+ * @details Set the bleaching timer for the specified module
+ * @param[in] id Slot ID
+ *
+ * @param[in] timer [0, 0x0FFFFFFF] Bleaching time.  If 0, keep the
+ * currently stored value.  Otherwise set the tmie in units of `20ns * 1024 * 1024`
+ *
+ * @param[in] enable `[0,1]` Disable (0) / Enable (1) bleaching timer
+ * @return If successful, OK.  Otherwise ERROR.
  */
 int32_t
 vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
@@ -726,6 +857,15 @@ vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable)
   return OK;
 }
 
+/**
+ * @brief Get the status of the bleaching timer
+ * @details Get the status of the bleaching timer for the specified module
+ * @param[in] id Slot ID
+ *
+ * @param[out] timer Timer value, units of `20ns * 1024 * 1024`
+ * @param[out] enable Timer enabled status
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable)
 {
@@ -743,6 +883,20 @@ vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable)
   return OK;
 }
 
+/**
+ * @brief Pulse Shape loading routine
+ * @details Load a pulse shape into the specified module
+ * @param[in] id Slot ID
+ * @param[in] dac_samples `[0, 0x7F]` Address of Array of DAC samples
+ * (2ns) to load. For each sample:
+ *      bits | desc
+ *          -|-
+ *      0:5  | DAC value
+ *      6    | a base line setting for the DAC
+ *
+ * @param[in] nsamples `[0, 2048]` Number of samples in `dac_samples`
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples)
 {
@@ -759,6 +913,13 @@ vldLoadPulse(int32_t id, uint8_t *dac_samples, uint32_t nsamples)
   return OK;
 }
 
+/**
+ * @brief Set the calibration pulse width
+ * @details Set the calibration pulse width of the specified module
+ * @param[in] id Slot ID
+ * @param[in] width `[0,1023]` Calibration pulse width in units of `4ns`
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetCalibrationPulseWidth(int32_t id, uint32_t width)
 {
@@ -778,6 +939,13 @@ vldSetCalibrationPulseWidth(int32_t id, uint32_t width)
   return OK;
 }
 
+/**
+ * @brief Get the calibration pulse width
+ * @details Get the calibration pulse width of the specified module
+ * @param[in] id Slot ID
+ * @param[out] width Calibration pulse width in units of `4ns`
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetCalibrationPulseWidth(int32_t id, uint32_t *width)
 {
@@ -790,6 +958,14 @@ vldGetCalibrationPulseWidth(int32_t id, uint32_t *width)
   return OK;
 }
 
+/**
+ * @brief Set the analog switch control
+ * @details Set the analog switch control parameters for the specified module
+ * @param[in] id Slot ID
+ * @param[in] enableDelay `[0,255]` Switch Control delay, in units of 4ns
+ * @param[in] enableWidth `[0,127]` Switch Control width, in units of 4ns.  If 0, `width = infinite`.
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth)
 {
@@ -817,6 +993,14 @@ vldSetAnalogSwitchControl(int32_t id, uint32_t enableDelay, uint32_t enableWidth
   return OK;
 }
 
+/**
+ * @brief Get the analog switch control
+ * @details Get the analog switch control parameters for the specified module
+ * @param[in] id Slot ID
+ * @param[out] enableDelay Switch Control delay, in units of 4ns
+ * @param[out] enableWidth Switch Control width, in units of 4ns.  If 0, `width = infinite`.
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetAnalogSwitchControl(int32_t id, uint32_t *enableDelay, uint32_t *enableWidth)
 {
@@ -833,6 +1017,16 @@ vldGetAnalogSwitchControl(int32_t id, uint32_t *enableDelay, uint32_t *enableWid
   return OK;
 }
 
+/**
+ * @brief Set the parameters of internal random pulser
+ * @details Set the parameters of internal random pulser for the specified module
+ * @param[in] id Slot ID
+ * @param[in] prescale `[0,7]` Random Pulser Rate prescale. Rate is determined by:
+ *      rate ~ (700 kHz) / (2 ** prescale)
+ *      e.g. prescale = 5, rate ~ 20 kHz
+ * @param[in] enable `[0,1]` Disable (0) / Enable (1) internal random pulser
+ * @return Description
+ */
 int32_t
 vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
 {
@@ -857,6 +1051,16 @@ vldSetRandomPulser(int32_t id, uint32_t prescale, uint32_t enable)
   return OK;
 }
 
+/**
+ * @brief Get the parameters of internal random pulser
+ * @details Get the parameters of internal random pulser for the specified module
+ * @param[in] id Slot ID
+ * @param[out] prescale Random Pulser Rate prescale. Rate is determined by:
+ *      rate ~ (700 kHz) / (2 ** prescale)
+ *      e.g. prescale = 5, rate ~ 20 kHz
+ * @param[out] enable Disable (0) / Enable (1) internal random pulser
+ * @return Description
+ */
 int32_t
 vldGetRandomPulser(int32_t id, uint32_t *prescale, uint32_t *enable)
 {
@@ -874,6 +1078,14 @@ vldGetRandomPulser(int32_t id, uint32_t *prescale, uint32_t *enable)
 }
 
 
+/**
+ * @brief Set the parameters for the internal periodic pulser
+ * @details Set the parameters for the internal periodic pulser for the specified module
+ * @param[in] id Slot ID
+ * @param[in] period `[0,65535]` Pulser Period
+ * @param[in] npulses `[0,65535]` Number of pulses to generate
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
 {
@@ -904,6 +1116,14 @@ vldSetPeriodicPulser(int32_t id, uint32_t period, uint32_t npulses)
   return OK;
 }
 
+/**
+ * @brief Get the parameters for the internal periodic pulser
+ * @details Get the parameters for the internal periodic pulser for the specified module
+ * @param[in] id Slot ID
+ * @param[out] period Pulser Period
+ * @param[out] npulses Number of pulses to generate
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetPeriodicPulser(int32_t id, uint32_t *period, uint32_t *npulses)
 {
@@ -921,6 +1141,13 @@ vldGetPeriodicPulser(int32_t id, uint32_t *period, uint32_t *npulses)
 }
 
 
+/**
+ * @brief Get the trigger count
+ * @details Get the trigger count from the specified module
+ * @param[in] id Slot ID
+ * @param[out] trigCnt Trigger Count
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldGetTriggerCount(int32_t id, uint32_t *trigCnt)
 {
@@ -933,6 +1160,19 @@ vldGetTriggerCount(int32_t id, uint32_t *trigCnt)
   return OK;
 }
 
+/**
+ * @brief Reset based on specified reset bits
+ * @details Reset the specified module based on the specified reset bits
+ * @param[in] id Slot ID
+ * @param[in] resetMask Reset Mask
+ *     bit | desc
+ *        -|-
+ *       1 | I2C
+ *       2 | JTAG
+ *       4 | Clock
+ *      10 | MGT
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldResetMask(int32_t id, uint32_t resetMask)
 {
@@ -951,6 +1191,11 @@ vldResetMask(int32_t id, uint32_t resetMask)
   return OK;
 }
 
+/**
+ * @brief I2C Reset
+ * @param[in] id Slot ID
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldResetI2C(int32_t id)
 {
@@ -963,6 +1208,11 @@ vldResetI2C(int32_t id)
   return OK;
 }
 
+/**
+ * @brief JTAG Reset
+ * @param[in] id Slot ID
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldResetJTAG(int32_t id)
 {
@@ -975,6 +1225,11 @@ vldResetJTAG(int32_t id)
   return OK;
 }
 
+/**
+ * @brief Soft Reset
+ * @param[in] id Slot ID
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldSoftReset(int32_t id)
   {
@@ -987,6 +1242,11 @@ vldSoftReset(int32_t id)
   return OK;
 }
 
+/**
+ * @brief Clock DCM Reset
+ * @param[in] id Slot ID
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldResetClockDCM(int32_t id)
 {
@@ -999,6 +1259,11 @@ vldResetClockDCM(int32_t id)
   return OK;
 }
 
+/**
+ * @brief MGT Reset
+ * @param[in] id Slot ID
+ * @return If successful, OK.  Otherwise ERROR.
+ */
 int32_t
 vldResetMGT(int32_t id)
 {

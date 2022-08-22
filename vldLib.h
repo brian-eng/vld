@@ -171,6 +171,7 @@ int32_t  vldSetTriggerSourceMask(int32_t id, uint32_t trigSrc);
 int32_t  vldGetTriggerSourceMask(int32_t id, uint32_t *trigSrc);
 
 int32_t  vldSetClockSource(int32_t id, uint32_t clkSrc);
+int32_t  vldGetClockSource(int32_t id, uint32_t *clkSrc);
 
 int32_t  vldSetBleachTime(int32_t id, uint32_t timer, uint32_t enable);
 int32_t  vldGetBleachTime(int32_t id, uint32_t *timer, uint32_t *enable);
