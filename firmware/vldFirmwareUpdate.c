@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 	}
     }
 
-  printf("Press y to load firmware (%s) to the TI via VME...\n", filename);
+  printf("Press y to load firmware (%s) to the VLD via VME...\n", filename);
   printf("\t or n to quit without update\n");
 
 REPEAT2:
